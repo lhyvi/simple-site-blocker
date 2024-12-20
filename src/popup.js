@@ -9,6 +9,7 @@ let enabledSwitch;
 let siteBox;
 let siteName;
 let siteBlockedSwitch;
+let siteBlockedForDaySwitch;
 let tabUrl;
 
 async function getCurrentTabUrl() {
@@ -39,7 +40,8 @@ async function getConfig() {
 	const config = await readStorage();
 	return config ? config : {
 		enabled: true,
-		blockedHosts: []
+		blockedHosts: [],
+		blockedForDayhosts: [],
 	};
 }
 
@@ -49,6 +51,12 @@ async function updateConfig() {
 
 async function isHostBlocked() {
 	return config.blockedHosts.indexOf(tabUrl.host) >= 0;
+}
+async function isHostForDayBlocked() {
+	config.blockedForDayhosts = config.blockedForDayhosts.filter((dh) => dh[1] >= Date.now());
+	const index = config.blockedForDayhosts.map((dh) => dh[0]).indexOf(tabUrl.host);
+	console.log(config);
+	return index >= 0;
 }
 
 function setSwitchValue(s, value) {
@@ -92,6 +100,29 @@ async function onSiteBlockedSwitchClicked(event) {
 	}
 }
 
+async function onSiteBlockedForDaySwitchClicked(event) {
+	event.preventDefault();
+
+	const value = !getSwitchValue(siteBlockedForDaySwitch);
+
+	if (value) {
+		config.blockedForDayhosts.push([tabUrl.host, Date.now() + 86400000]);
+		setSwitchValue(siteBlockedForDaySwitch, value);
+	} else {
+		config.blockedForDayhosts = config.blockedForDayhosts.filter((dh) => dh[1] >= Date.now());
+		
+		const index = config.blockedForDayhosts.map((dh) => dh[0]).indexOf(tabUrl.host);
+		if (index < 0) {
+			setSwitchValue(siteBlockedForDaySwitch, value);
+		}
+	}
+
+	await updateConfig();
+	if (tabUrl) {
+		await setCurrentTabUrl(tabUrl.href);
+	}
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
 	enabledSwitch = document.getElementById('enabled-switch');
 	enabledSwitch.addEventListener('click', onEnabledSwitchClicked);
@@ -99,6 +130,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 	siteName = document.getElementById('site-name');
 	siteBlockedSwitch = document.getElementById('site-blocked-switch');
 	siteBlockedSwitch.addEventListener('click', onSiteBlockedSwitchClicked);
+	siteBlockedForDaySwitch = document.getElementById('site-blocked-for-day-switch');
+	siteBlockedForDaySwitch.addEventListener('click', onSiteBlockedForDaySwitchClicked);
 
 	tabUrl = await getCurrentTabUrl();
 
@@ -107,7 +140,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 	if (tabUrl) {
 		siteName.innerText = tabUrl.host;
-		setSwitchValue(siteBlockedSwitch, await isHostBlocked());
+		const hostBlockedForDay = await isHostForDayBlocked();
+		
+		const hostBlocked = await isHostBlocked();
+		setSwitchValue(siteBlockedSwitch, hostBlocked);
+		
+		setSwitchValue(siteBlockedForDaySwitch, hostBlockedForDay);
 	} else {
 		siteBox.style.display = 'none';
 	}
