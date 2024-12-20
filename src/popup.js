@@ -149,4 +149,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 	} else {
 		siteBox.style.display = 'none';
 	}
+	
+	const popupMsg = document.getElementById('popup-msg');
+	const msgs = [
+		'Message Here',
+		'sadwqesdwad',
+	];
+	popupMsg.innerText = msgs[Math.floor(Math.random() * msgs.length)];
 });
